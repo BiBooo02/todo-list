@@ -2,6 +2,7 @@ import { DeleteOutlineRounded, Send } from '@mui/icons-material';
 import * as Icons from '@mui/icons-material';
 import {
   Box,
+  Button,
   Checkbox,
   Divider,
   IconButton,
@@ -23,7 +24,7 @@ import { useAppState } from '../providers/AppState.jsx';
 
 export function CurrentTodoList() {
   const { currentList } = useAppState();
-  const { data, newItem, deleteItem, toggleChecked, updateItem } =
+  const { data, newItem, deleteItem, toggleChecked, updateItem, clearCompleted } =
     useTodoList(currentList);
   const { updateList } = useTodoLists();
   const [newItemText, setNewItemText] = useState('');
@@ -45,12 +46,29 @@ export function CurrentTodoList() {
   }, [data]);
 
   const Icon = Icons[data?.icon];
+  const completedCount = data?.items?.filter(({ checked }) => checked).length ?? 0;
+
+  const handleAddItem = () => {
+    if (!newItemText.trim()) {
+      return;
+    }
+    void newItem(newItemText);
+    setNewItemText('');
+  };
 
   return (
-    <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+    <Box
+      component="main"
+      sx={{
+        flexGrow: 1,
+        p: { xs: 2, sm: 3 },
+        width: { xs: '100%', sm: 'auto' },
+        minWidth: 0,
+      }}
+    >
       <Toolbar />
       <Box sx={{ flex: 1 }}>
-        {data ? (
+        {data?.id ? (
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <Box
@@ -60,6 +78,7 @@ export function CurrentTodoList() {
                   mr: 1,
                   borderRadius: '50%',
                   display: 'flex',
+                  flexShrink: 0,
                 }}
               >
                 {Icon ? (
@@ -76,15 +95,28 @@ export function CurrentTodoList() {
                 onBlur={event => {
                   void updateList(data.id, event.target.value);
                 }}
+                fullWidth
+                variant="standard"
               />
             </Box>
             <Divider />
+            {completedCount > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => void clearCompleted()}
+                >
+                  {`Clear completed (${completedCount})`}
+                </Button>
+              </Box>
+            )}
             <List
               sx={{
                 width: '100%',
                 bgcolor: 'background.paper',
                 mx: 'auto',
-                mt: 2,
+                mt: completedCount > 0 ? 0 : 2,
               }}
             >
               {data.items.map(({ id, checked }) => {
@@ -96,7 +128,7 @@ export function CurrentTodoList() {
                     secondaryAction={
                       <IconButton
                         edge="end"
-                        aria-label="delete"
+                        aria-label="delete item"
                         onClick={() => deleteItem(id)}
                       >
                         <DeleteOutlineRounded />
@@ -133,6 +165,13 @@ export function CurrentTodoList() {
                           value={originalListItems[id] ?? ''}
                           size="small"
                           variant="standard"
+                          fullWidth
+                          sx={{
+                            '& .MuiInputBase-input': {
+                              textDecoration: checked ? 'line-through' : 'none',
+                              color: checked ? 'text.disabled' : 'text.primary',
+                            },
+                          }}
                         />
                       </ListItemText>
                     </ListItemButton>
@@ -145,8 +184,7 @@ export function CurrentTodoList() {
                   sx={{ width: 1 }}
                   onSubmit={event => {
                     event.preventDefault();
-                    void newItem(newItemText);
-                    setNewItemText('');
+                    handleAddItem();
                   }}
                 >
                   <TextField
@@ -164,11 +202,10 @@ export function CurrentTodoList() {
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
-                            aria-label="submit"
-                            onClick={() => {
-                              document.activeElement.blur();
-                            }}
+                            aria-label="add item"
+                            type="submit"
                             edge="end"
+                            disabled={!newItemText.trim()}
                           >
                             <Send />
                           </IconButton>

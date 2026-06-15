@@ -2,16 +2,18 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('todo-list-db');
 db.version(2).stores({
-  lists: '++id, name', // Primary key and indexed props
-  listItems: '++id, name, checked, listId', // Primary key and indexed props
+  lists: '++id, name',
+  listItems: '++id, name, checked, listId',
 });
 
 export const APIs = {
   TodoLists: 'todo-lists',
   TodoListsUpdate: 'todo-lists-update',
+  TodoListsDelete: 'todo-lists-delete',
   TodoList: 'todo-list',
   TodoListDelete: 'todo-list-delete',
   TodoListUpdate: 'todo-list-update',
+  TodoListClearCompleted: 'todo-list-clear-completed',
 };
 
 export async function fetcher({ url, ...variables }) {
@@ -35,12 +37,19 @@ export async function putter({ url, id, ...variables }) {
       return db.lists.add({ name: variables.name, icon: variables.icon });
     case APIs.TodoListsUpdate:
       return db.lists.update(id, { name: variables.name });
+    case APIs.TodoListsDelete:
+      return db.transaction('rw', db.lists, db.listItems, async () => {
+        await db.listItems.where({ listId: id }).delete();
+        await db.lists.delete(id);
+      });
     case APIs.TodoList:
       return db.listItems.add({ listId: id, name: variables.name });
     case APIs.TodoListDelete:
       return db.listItems.delete(id);
     case APIs.TodoListUpdate:
       return db.listItems.update(id, variables);
+    case APIs.TodoListClearCompleted:
+      return db.listItems.where({ listId: id, checked: true }).delete();
     default:
       throw new Error(`Unknown API ${url}`);
   }
